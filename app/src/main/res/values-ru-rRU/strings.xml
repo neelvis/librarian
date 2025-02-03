@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Читер</string>
+    <string name="main_nav_button_label">Мои книги</string>
+    <string name="global_nav_button_label">Открытия</string>
+    <string name="addBook_nav_button_label">Добавить</string>
+    <string name="notification_nav_button_label">Сообщения</string>
+    <string name="profile_nav_button_label">Обо мне</string>
+</resources>

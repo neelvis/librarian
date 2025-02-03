@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Librarian</string>
+    <string name="main_nav_button_label">Main</string>
+    <string name="global_nav_button_label">Explore</string>
+    <string name="addBook_nav_button_label">Add</string>
+    <string name="notification_nav_button_label">News</string>
+    <string name="profile_nav_button_label">Me</string>
+</resources>
