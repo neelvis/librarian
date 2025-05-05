@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Security Review"
+  short_description: "Review Android app security"
+  default_prompt: "Use $android-webview-security-review to review this Android security-sensitive change."

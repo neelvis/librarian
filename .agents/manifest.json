@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "ssot": ".agents",
+  "vendors": {
+    "cursor": {
+      "skills": "direct",
+      "skills_path": ".agents/skills",
+      "notes": "Cursor loads skills from .agents/skills and instructions from root AGENTS.md. Project MCP still requires .cursor/mcp.json.",
+      "generate": ["mcp", "root_instructions"]
+    },
+    "codex": {
+      "skills": "direct",
+      "skills_path": ".agents/skills",
+      "notes": "Codex scans .agents/skills from CWD up to repo root. Do not mirror skills into .codex/skills.",
+      "generate": ["agents", "config", "root_instructions", "readme"]
+    },
+    "claude": {
+      "skills": "generate",
+      "skills_path": ".claude/skills",
+      "notes": "Claude Code primarily discovers skills under .claude/skills; generate adapters from .agents/skills.",
+      "generate": ["skills", "mcp", "root_instructions"]
+    }
+  },
+  "outputs": {
+    "root_instructions": ["AGENTS.md", "CLAUDE.md"],
+    "cursor_mcp": ".cursor/mcp.json",
+    "codex_config": ".codex/config.toml",
+    "codex_agents": ".codex/agents",
+    "codex_readme": ".codex/README.md",
+    "claude_skills": ".claude/skills",
+    "claude_mcp": ".mcp.json"
+  },
+  "obsolete_paths": [
+    ".cursor/commands",
+    ".cursor/rules",
+    ".cursor/skills",
+    ".codex/skills",
+    ".codex/evals"
+  ],
+  "generated_marker": "Generated from .agents SSOT. Do not edit manually; run: py -3 .agents/scripts/sync_agents.py"
+}

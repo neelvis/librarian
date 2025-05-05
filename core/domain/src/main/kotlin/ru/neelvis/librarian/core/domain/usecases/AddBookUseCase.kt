@@ -15,14 +15,7 @@ class AddBookUseCase @Inject constructor(
     SuspendUseCase<Book, Unit>(dispatcher) {
     override suspend fun execute(parameters: Book) {
         withContext(dispatcher) {
-            booksRepository.addBook(
-                parameters.title,
-                parameters.authors,
-                parameters.cover,
-                parameters.isbn,
-                parameters.publishedDate,
-                parameters.description
-            )
+            booksRepository.addBook(parameters)
         }
     }
 }

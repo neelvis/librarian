@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Feature Debug"
+  short_description: "Diagnose Android feature failures"
+  default_prompt: "Use $android-debug-wrapper to diagnose this Android failure."

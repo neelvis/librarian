@@ -20,31 +20,16 @@ import javax.inject.Singleton
 class BooksRepositoryImpl @Inject constructor(
     private val booksDatabase: BookDao,
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
-) : BooksRepository() {
+) : BooksRepository {
 
-    override suspend fun addBook(
-        title: String,
-        authors: List<String>,
-        cover: ByteArray?,
-        isbn: String?,
-        publishedDate: String?,
-        description: String?,
-    ) {
+    override suspend fun addBook(book: Book) {
         val bookID = withContext(dispatcher) {
             UUID.randomUUID().toString()
         }
-        Log.d("AddBook", "Book with title $title and uuid $bookID")
+        Log.d("AddBook", "Book with title ${book.title} and uuid $bookID")
         withContext(dispatcher) {
             booksDatabase.insertBook(
-                Book(
-                    id = bookID,
-                    title = title,
-                    authors = authors,
-                    cover = cover,
-                    isbn = isbn,
-                    publishedDate = publishedDate,
-                    description = description
-                ).toLocalBookEntity()
+                book.copy(id = bookID).toLocalBookEntity()
             )
         }
     }
@@ -55,8 +40,11 @@ class BooksRepositoryImpl @Inject constructor(
     override fun getBookByID(id: String): Book =
         booksDatabase.findBookByID(id).toBook()
 
-    override fun getAllBooks(): Flow<List<Book>> =
-        booksDatabase.getAllBooks().toBookList()
+    override fun getAllBooks(): Flow<List<Book>> = booksDatabase.getAllBooks().toBookList()
+
+    override suspend fun updateBookInfo(book: Book) {
+        booksDatabase.updateBook(book.toLocalBookEntity())
+    }
 
     override suspend fun removeBook(book: Book) {
         booksDatabase.deleteBook(book.toLocalBookEntity())
@@ -64,5 +52,11 @@ class BooksRepositoryImpl @Inject constructor(
 
     override suspend fun removeBooks(books: List<Book>) {
         booksDatabase.deleteBooks(books.toLocalBookEntities())
+    }
+
+    override suspend fun clearDB() {
+        withContext(dispatcher) {
+            booksDatabase.clearDB()
+        }
     }
 }

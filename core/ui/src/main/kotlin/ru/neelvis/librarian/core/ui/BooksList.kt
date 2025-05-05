@@ -1,4 +1,4 @@
-package ru.neelvis.librarian.common.ui
+package ru.neelvis.librarian.core.ui
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.BorderStroke

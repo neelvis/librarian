@@ -12,8 +12,8 @@ data object AddBookRoute
 
 fun NavController.navigateToAddBook(navOptions: NavOptions) = navigate(AddBookRoute, navOptions)
 
-fun NavGraphBuilder.addBookSection() {
+fun NavGraphBuilder.addBookSection(navController: NavController) {
     composable<AddBookRoute> {
-        AddBookScreen()
+        AddBookScreen(onNavigateBack = navController::popBackStack)
     }
 }

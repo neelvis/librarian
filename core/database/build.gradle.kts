@@ -32,16 +32,16 @@ dependencies {
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    // If this project uses any Kotlin source, use Kotlin Symbol Processing (KSP)
+    // See Add the KSP plugin to your project
+    ksp(libs.androidx.room.compiler)
 
     // Hilt
     implementation(libs.hilt.android.core)
-    implementation(libs.androidx.hilt.navigation.compose)
-    testImplementation(libs.junit.junit)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.androidx.junit)
     ksp(libs.hilt.compiler)
 
-    // If this project uses any Kotlin source, use Kotlin Symbol Processing (KSP)
-    // See Add the KSP plugin to your project
-    ksp(libs.androidx.room.compiler)
 }

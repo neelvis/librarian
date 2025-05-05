@@ -1,37 +1,34 @@
 package ru.neelvis.librarian.feature.add_books.viewmodels
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.neelvis.librarian.common.events.BookEvent
 import ru.neelvis.librarian.common.usecase.UseCaseResult
 import ru.neelvis.librarian.core.domain.usecases.AddBookUseCase
 import ru.neelvis.librarian.core.model.Book
 import javax.inject.Inject
 
 @HiltViewModel
-class AddBooksViewModel @Inject constructor(
+class AddBookViewModel @Inject constructor(
     private val addBookUseCase: AddBookUseCase,
 ) : ViewModel() {
 
-    private val _isBookAdded = MutableLiveData<Boolean?>(null)
-    val isBookAdded: LiveData<Boolean?> = _isBookAdded
+    private val _isBookAdded = MutableSharedFlow<BookEvent>()
+    val isBookAdded = _isBookAdded.asSharedFlow()
 
     fun addBookToList(
         book: Book,
     ) {
         viewModelScope.launch {
-            val result = async {
+            val result = withContext(viewModelScope.coroutineContext) {
                 addBookUseCase.invoke(book)
-            }.await()
-            _isBookAdded.postValue(result is UseCaseResult.Success)
+            }
+            _isBookAdded.emit(if (result is UseCaseResult.Success) BookEvent.BOOK_ADDED else BookEvent.ERROR((result as UseCaseResult.Error).exception.message ?: "Error while adding the book"))
         }
-    }
-
-    fun finishAddingBook() {
-        _isBookAdded.value = null
     }
 }

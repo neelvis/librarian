@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Android Change"
+  short_description: "Validate a scoped Android change"
+  default_prompt: "Use $android-verify-change to validate this Android change."

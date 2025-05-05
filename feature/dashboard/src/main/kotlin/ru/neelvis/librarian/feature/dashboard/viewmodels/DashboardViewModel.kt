@@ -3,25 +3,27 @@ package ru.neelvis.librarian.feature.dashboard.viewmodels
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import ru.neelvis.librarian.common.ui.BooksListUiState
+import kotlinx.coroutines.withContext
+import ru.neelvis.librarian.common.events.BookEvent
 import ru.neelvis.librarian.common.usecase.UseCaseResult
 import ru.neelvis.librarian.core.domain.usecases.GetAllBooksUseCase
 import ru.neelvis.librarian.core.domain.usecases.RemoveBooksUseCase
+import ru.neelvis.librarian.core.domain.usecases.UpdateBookUseCase
 import ru.neelvis.librarian.core.model.Book
+import ru.neelvis.librarian.core.ui.BooksListUiState
 import javax.inject.Inject
 import kotlin.collections.joinToString
 import kotlin.collections.map
@@ -32,7 +34,8 @@ enum class SelectionMode { VIEW, SELECT }
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     getAllBooksUseCase: GetAllBooksUseCase,
-    val removeBooksUseCase: RemoveBooksUseCase,
+    private val removeBooksUseCase: RemoveBooksUseCase,
+    private val updateBookUseCase: UpdateBookUseCase,
 ) : ViewModel() {
 
     private val _selectionMode: MutableStateFlow<SelectionMode> = MutableStateFlow(SelectionMode.VIEW)
@@ -56,7 +59,6 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun isSelected(book: Book) = _selectedBooks.value.contains(book)
-
     fun deleteSelected() {
         removeBooks(selectedBooks.value.toList())
         clearSelection()
@@ -71,6 +73,26 @@ class DashboardViewModel @Inject constructor(
     private val _currentBook: MutableState<Book> = mutableStateOf(Book())
     fun setCurrentBook(book: Book) {
         _currentBook.value = book
+    }
+
+    private val _isBookUpdated = MutableSharedFlow<BookEvent>()
+    val isBookUpdatedFlow = _isBookUpdated.asSharedFlow()
+    fun updateBook(book: Book) {
+        viewModelScope.launch {
+            val result = withContext(viewModelScope.coroutineContext) {
+                updateBookUseCase.invoke(book)
+            }
+            if (result is UseCaseResult.Success) {
+                setCurrentBook(book)
+                _isBookUpdated.emit(BookEvent.BOOK_UPDATED)
+            } else {
+                _isBookUpdated.emit(
+                    BookEvent.ERROR(
+                        message = (result as UseCaseResult.Error).exception.message ?: "Unknown error while updating the book"
+                    )
+                )
+            }
+        }
     }
 
     val currentBook: Book
@@ -101,21 +123,25 @@ class DashboardViewModel @Inject constructor(
         }.also { Log.d(null, "getAllBooksUseCase invoked") }
 
 
-    private val _isBookRemoved = MutableLiveData<Boolean?>(null)
-    val isBookRemoved: LiveData<Boolean?> = _isBookRemoved
+    private val _isBookRemoved = MutableSharedFlow<BookEvent>()
+    val isBookRemovedFlow = _isBookRemoved.asSharedFlow()
     fun removeCurrentBook() {
         removeBooks(listOf(currentBook))
     }
 
     fun removeBooks(books: List<Book>) {
         viewModelScope.launch {
-            val result = async { removeBooksUseCase.invoke(books) }.await()
-            _isBookRemoved.postValue(result is UseCaseResult.Success)
+            val result = withContext(viewModelScope.coroutineContext) { removeBooksUseCase.invoke(books) }
+            if (result is UseCaseResult.Success) {
+                _isBookRemoved.emit(BookEvent.BOOK_REMOVED)
+            } else {
+                _isBookRemoved.emit(
+                    BookEvent.ERROR(
+                        message = (result as UseCaseResult.Error).exception.message ?: "Unknown error while removing books"
+                    )
+                )
+            }
             Log.d(null, "removing ${books.size} books: $result")
         }
-    }
-
-    fun confirmRemoving() {
-        _isBookRemoved.value = null
     }
 }

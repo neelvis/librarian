@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.hilt)
     alias(libs.plugins.devtools.ksp)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -39,28 +40,30 @@ android {
 }
 
 dependencies {
-    implementation(project(":common"))
+    // Project modules
+    implementation(project(":core:domain"))
+    implementation(project(":core:data"))
+    implementation(project(":core:model"))
+    implementation(project(":core:ui"))
 
-    implementation(libs.androidx.ui.tooling.preview.android)
+    // Compose BOM and Compose UI
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
-
-    // Material Design 3
-    implementation(libs.androidx.material3)
-
-    // UI Tests
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
-
-    // Android Studio Preview support
+    implementation(libs.androidx.ui.tooling.preview.android)
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.coil.compose)
 
-    // Hilt
-    implementation(libs.hilt.android.core)
-    implementation(libs.androidx.hilt.navigation.compose)
-    ksp(libs.hilt.compiler)
+    // Material Design
+    implementation(libs.androidx.material3)
+    implementation(libs.material)
+    implementation(libs.androidx.compose.material.icons.extended)
+
+    // AndroidX Core/Compat
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
 
     // Navigation
     implementation(libs.androidx.navigation)
@@ -69,15 +72,28 @@ dependencies {
     implementation(libs.androidx.navigation.feature.fragment)
     implementation(libs.androidx.navigation.testing)
 
-    implementation(libs.androidx.activity.compose)
+    // Hilt/DI
+    implementation(libs.hilt.android.core)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    ksp(libs.hilt.compiler)
+
+    // Lifecycle/ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.runtime.livedata)
+
+    // Serialization/Other
     implementation(libs.kotlinx.serialization)
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+
+    // Authentication
+    implementation(libs.play.services.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(platform(libs.firebase.bom))
 }

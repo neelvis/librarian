@@ -13,6 +13,10 @@ android {
     namespace = "ru.neelvis.librarian.feature.dashboard"
     compileSdk = 35
 
+    buildFeatures {
+        compose = true
+    }
+
     defaultConfig {
         minSdk = 31
 
@@ -37,31 +41,28 @@ kotlin {
 }
 
 dependencies {
+    // Project modules
     implementation(project(":common"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:ui"))
 
-    implementation(libs.androidx.ui.tooling.preview.android)
+    // Compose BOM and Compose UI
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
-
-    // Material Design 3
-    implementation(libs.androidx.material3)
-
-    // UI Tests
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
-
-    // Android Studio Preview support
+    implementation(libs.androidx.ui.tooling.preview.android)
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Hilt
-    implementation(libs.hilt.android.core)
-    implementation(libs.androidx.hilt.navigation.compose)
-    ksp(libs.hilt.compiler)
+    // Material Design
+    implementation(libs.androidx.material3)
+    implementation(libs.material)
+
+    // AndroidX Core/Compat
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
 
     // Navigation
     implementation(libs.androidx.navigation)
@@ -70,15 +71,29 @@ dependencies {
     implementation(libs.androidx.navigation.feature.fragment)
     implementation(libs.androidx.navigation.testing)
 
-    implementation(libs.androidx.activity.compose)
+    // Hilt/DI
+    implementation(libs.hilt.android.core)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    ksp(libs.hilt.compiler)
+
+    // Lifecycle/ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.runtime.livedata)
+
+    // Serialization/Other
     implementation(libs.kotlinx.serialization)
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.core.testing)
+    androidTestImplementation(libs.core.testing)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+
+    implementation(libs.coil.compose)
 }

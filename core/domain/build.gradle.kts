@@ -32,11 +32,17 @@ kotlin {
     jvmToolchain(21)
 }
 dependencies {
+    // Project modules
     api(project(":common"))
     api(project(":core:model"))
 
-    // Hilt
+    // Hilt/DI
     implementation(libs.hilt.android.core)
-    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     ksp(libs.hilt.compiler)
+
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }

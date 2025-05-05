@@ -30,4 +30,7 @@ interface BookDao {
 
     @Delete
     suspend fun deleteBooks(books: List<LocalBookEntity>)
+
+    @Query("DELETE FROM localbookentity WHERE false") // prevent occasional deletion
+    fun clearDB()
 }

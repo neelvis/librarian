@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import ru.neelvis.librarian.core.database.local.LocalBookEntity
 import ru.neelvis.librarian.core.model.Book
+import ru.neelvis.librarian.core.model.OpenLibBook
 
 fun LocalBookEntity.toBook(): Book =
     Book(
@@ -42,3 +43,14 @@ fun List<Book>.toLocalBookEntities(): List<LocalBookEntity> = this.map { book ->
     )
 }
 
+
+fun OpenLibBook.toBookWithCover(cover: ByteArray?): Book =
+    Book(
+        id = this.key,
+        title = this.title,
+        authors = this.authorName,
+        cover = cover,
+        isbn = this.isbn,
+        publishedDate = this.firstPublishYear,
+        description = null
+    )

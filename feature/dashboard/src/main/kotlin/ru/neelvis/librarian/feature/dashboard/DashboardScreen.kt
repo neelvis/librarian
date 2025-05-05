@@ -1,8 +1,7 @@
-import android.util.Log
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,15 +15,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,60 +45,62 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.flow.StateFlow
 import ru.neelvis.librarian.common.R
-import ru.neelvis.librarian.common.ui.BookCard
-import ru.neelvis.librarian.common.ui.BooksListUiState
+import ru.neelvis.librarian.common.events.BookEvent
 import ru.neelvis.librarian.core.model.Book
+import ru.neelvis.librarian.core.model.User
+import ru.neelvis.librarian.core.ui.BookCard
+import ru.neelvis.librarian.core.ui.BooksListUiState
 import ru.neelvis.librarian.feature.dashboard.viewmodels.DashboardViewModel
 import ru.neelvis.librarian.feature.dashboard.viewmodels.SelectionMode
 
 data class SelectableBook(val book: Book, var selected: Boolean? = null)
 
 @Composable
-internal fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel(), navigateOnBookSelected: () -> Unit) {
-    val booksUiState by viewModel.booksUiState.collectAsStateWithLifecycle()
+internal fun DashboardScreen(
+    : DashboardViewModel = hiltViewModel(),
+    userFlow: StateFlow<User?>,
+    onSignInClick: () -> Unit,
+    navigateOnBookSelected: () -> Unit,
+) {
+    val booksUiState by viewModel.booksUiState.collectAsStateWithLifecycle(minActiveState= Lifecycle.State.RESUMED)
     val selectionMode: SelectionMode by viewModel.selectionMode.collectAsStateWithLifecycle(initialValue = SelectionMode.VIEW)
     val selectedBooks: Set<Book> by viewModel.selectedBooks.collectAsStateWithLifecycle(initialValue = setOf()) // for SelectionMode.SELECT
+    val user: User? by userFlow.collectAsStateWithLifecycle(initialValue = null)
 
-    // group books list by 3 for grid representation
-    val booksGrouped: List<List<Book>> = when (booksUiState) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.isBookRemovedFlow.collect { event ->
+            if (event is BookEvent.BOOK_REMOVED) {
+                Toast.makeText(context, "Deleted successfully", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Error while deleting", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val books: List<Book> = when (booksUiState) {
         BooksListUiState.IsLoading, BooksListUiState.Error -> {
             emptyList()
         }
-
         is BooksListUiState.Success -> {
-            (booksUiState as BooksListUiState.Success).books.chunked(3)
-        }
-    }
-    val booksCount = when (booksUiState) {
-        BooksListUiState.IsLoading, BooksListUiState.Error -> {
-            0
-        }
-
-        is BooksListUiState.Success -> {
-            (booksUiState as BooksListUiState.Success).books.size
-        }
-    }
-
-    val context = LocalContext.current
-    viewModel.isBookRemoved.observe(LocalLifecycleOwner.current) { removed ->
-        Log.d(null, "books were removed: $removed")
-        if (removed == true) {
-            Toast.makeText(context, "Deleted successfully", Toast.LENGTH_SHORT).show()
-            viewModel.confirmRemoving()
+            (booksUiState as BooksListUiState.Success).books
         }
     }
 
     DashboardScreen(
-        booksGrouped = booksGrouped,
-        booksCount = booksCount,
+        user = user,
+        onSignInClick = onSignInClick,
+        books = books,
         onBookClicked = { book ->
             if (selectionMode == SelectionMode.VIEW) {
                 viewModel.setCurrentBook(book)
-                navigateOnBookSelected.invoke()
+                navigateOnBookSelected()
             } else {
                 if (viewModel.isSelected(book)) {
                     viewModel.deselectBook(book)
@@ -126,46 +131,45 @@ internal fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel(), na
 
 @Composable
 fun DashboardScreen(
-    booksGrouped: List<List<Book>>, booksCount: Int,
+    books: List<Book>,
     onBookClicked: (Book) -> Unit, onBookLongClicked: (Book) -> Unit,
     onDeleteSelectedClick: () -> Unit, onClearSelectionClick: () -> Unit,
     selectionMode: SelectionMode, selectedBooks: Set<Book>,
+    user: User? = null, // Pass user info if available
+    onSignInClick: (() -> Unit)? = null, // For sign in prompt
 ) {
-    val lazyScrollState = rememberLazyListState()
+    val screenConfiguration = LocalConfiguration.current
+
+    val gridState = rememberLazyGridState()
     var scrolledY = 0f
-    var previousOffset = 0
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(horizontalAlignment = Alignment.CenterHorizontally, state = lazyScrollState) {
-            scrolledY += lazyScrollState.firstVisibleItemScrollOffset - previousOffset
-            previousOffset = lazyScrollState.firstVisibleItemScrollOffset
-
-            item {
-                Header(
-                    scrollOffset = scrolledY,
-                    booksCount = booksCount
-                )
-            }
-            // Books list
-            items(booksGrouped) { booksGroup ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp)
-                        .background(Color(0xEEFFFFFF)),
-                    horizontalArrangement = Arrangement.spacedBy(15.dp),
-                ) {
-                    booksGroup.map { book ->
-                        BookCardWrapper(
-                            selectableBook = SelectableBook(
-                                book = book,
-                                selected = if (selectionMode == SelectionMode.VIEW) null else selectedBooks.contains(book)
-                            ),
-                            onBookClicked = onBookClicked,
-                            onBookLongClicked = onBookLongClicked
-                        )
-                    }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 100.dp),
+            state = gridState,
+            contentPadding = PaddingValues(all = 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(15.dp),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            if (screenConfiguration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+                item(span = { GridItemSpan(this.maxLineSpan) }) {
+                    DashboardHeader(
+                        scrollOffset = scrolledY,
+                        booksCount = books.size,
+                        user = user,
+                        onSignInClick = onSignInClick
+                    )
                 }
+            }
+            items(books, key = { it.id }) { book ->
+                BookCardWrapper(
+                    selectableBook = SelectableBook(
+                        book = book,
+                        selected = if (selectionMode == SelectionMode.VIEW) null else selectedBooks.contains(book)
+                    ),
+                    onBookClicked = onBookClicked,
+                    onBookLongClicked = onBookLongClicked,
+                )
             }
         }
         if (selectionMode == SelectionMode.SELECT) {
@@ -177,7 +181,7 @@ fun DashboardScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     Button(
                         onClick = { onDeleteSelectedClick() },
-                        enabled = selectedBooks.size > 0
+                        enabled = selectedBooks.isNotEmpty()
                     ) {
                         Text("Delete selected (${selectedBooks.size})")
                     }
@@ -192,30 +196,32 @@ fun DashboardScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BookCardWrapper(selectableBook: SelectableBook, onBookClicked: (Book) -> Unit, onBookLongClicked: (Book) -> Unit) {
+fun BookCardWrapper(
+    selectableBook: SelectableBook,
+    onBookClicked: (Book) -> Unit,
+    onBookLongClicked: (Book) -> Unit,
+) {
     Box(
-        modifier = Modifier.combinedClickable(
-            onClick = { onBookClicked(selectableBook.book) },
-            onLongClick = { onBookLongClicked(selectableBook.book) })
+        modifier = Modifier
+            .combinedClickable(
+                onClick = { onBookClicked(selectableBook.book) },
+                onLongClick = { onBookLongClicked(selectableBook.book) }
+            )
+            .width(100.dp)
+            .height(150.dp)
     ) {
-        Box(
-            modifier = Modifier
+        BookCard(
+            selectableBook.book,
+            Modifier
                 .width(100.dp)
                 .height(150.dp)
-        ) {
-            BookCard(
-                selectableBook.book,
-                Modifier
-                    .width(100.dp)
-                    .height(150.dp)
-            )
-            if (selectableBook.selected == true) {
-                Text("Selected", color = Color.Green)
-            } else if (selectableBook.selected == false) {
-                Text("Unselected", color = Color.Red)
-            } else {
-                Text("View mode", color = Color.Blue)
-            }
+        )
+        if (selectableBook.selected == true) {
+            Text("Selected", color = Color.Green)
+        } else if (selectableBook.selected == false) {
+            Text("Unselected", color = Color.Red)
+        } else {
+            Text("View mode", color = Color.Blue)
         }
     }
 }
@@ -244,7 +250,7 @@ fun UserInfoCounter(counter: Int, label: String) {
 }
 
 @Composable
-fun Header(scrollOffset: Float, booksCount: Int, freinds: Int = 0) {
+fun DashboardHeader(scrollOffset: Float, booksCount: Int, user: User?, onSignInClick: (() -> Unit)? = null, friends: Int = 0) {
     Box(
         modifier = Modifier
             .height(100.dp)
@@ -265,7 +271,6 @@ fun Header(scrollOffset: Float, booksCount: Int, freinds: Int = 0) {
             contentDescription = "Main header pic",
             contentScale = ContentScale.FillWidth
         )
-
         //header content with paddings
         Box(
             modifier = Modifier
@@ -283,29 +288,57 @@ fun Header(scrollOffset: Float, booksCount: Int, freinds: Int = 0) {
                 modifier = Modifier
                     .align(Alignment.TopStart)
             ) {
-                Image(
-                    modifier = Modifier
-                        .width(80.dp)
-                        .height(80.dp)
-                        .clip(RoundedCornerShape(corner = CornerSize(80.dp)))
-                        .border(width = 2.dp, brush = SolidColor(Color.White), shape = CircleShape),
-                    painter = painterResource(R.drawable.profile_mock),
-                    contentDescription = "Avatar",
-                    contentScale = ContentScale.Crop
-                )
+                if (user?.photoUrl.isNullOrBlank()) {
+                    Image(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(corner = CornerSize(80.dp)))
+                            .border(width = 2.dp, brush = SolidColor(Color.White), shape = CircleShape),
+                        painter = painterResource(R.drawable.profile_mock),
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(corner = CornerSize(80.dp)))
+                            .border(width = 2.dp, brush = SolidColor(Color.White), shape = CircleShape),
+                        painter = rememberAsyncImagePainter(user.photoUrl),
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
-            // User name and nickname
+            // User name and nickname or sign in prompt
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(PaddingValues(start = 85.dp))
             ) {
-                Text(
-                    "@neelvis_reader",
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    fontSize = TextUnit(12f, TextUnitType.Sp),
-                    color = Color.White
-                )
+                if (user != null) {
+                    Text(
+                        user.name.ifBlank { user.email },
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        fontSize = TextUnit(12f, TextUnitType.Sp),
+                        color = Color.White
+                    )
+                } else {
+                    Text(
+                        "Not signed in",
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        fontSize = TextUnit(12f, TextUnitType.Sp),
+                        color = Color.White
+                    )
+                    if (onSignInClick != null) {
+                        Button(
+                            onClick = onSignInClick,
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) { Text("Sign In / Sign Up") }
+                    }
+                }
             }
             // Counters
             Column(
@@ -316,7 +349,7 @@ fun Header(scrollOffset: Float, booksCount: Int, freinds: Int = 0) {
                 horizontalAlignment = Alignment.End
             ) {
                 UserInfoCounter(booksCount, "Books")
-                UserInfoCounter(freinds, "Friends")
+                UserInfoCounter(friends, "Friends")
             }
         }
     }
@@ -324,27 +357,15 @@ fun Header(scrollOffset: Float, booksCount: Int, freinds: Int = 0) {
 
 @Preview
 @Composable
-fun HeaderPreview() {
-    Column {
-        Header(0f, 100000)
-        Header(50f, 100000)
-        Header(100f, 100000)
-    }
-}
-
-@Preview
-@Composable
 fun DashboardScreenPreviewNoSelection() {
-    DashboardScreen(booksGrouped = listOf(
-        listOf(
-            Book(title = "1"),
-            Book(title = "2"),
-            Book(title = "3")
-        ),
-        listOf(
-            Book(title = "4")
-        )
-    ), booksCount = 4,
+    DashboardScreen(books =
+    listOf(
+        Book(title = "1"),
+        Book(title = "2"),
+        Book(title = "3"),
+        Book(title = "4")
+
+    ),
         onBookClicked = {}, onBookLongClicked = {},
         onDeleteSelectedClick = {}, onClearSelectionClick = {},
         selectionMode = SelectionMode.VIEW, selectedBooks = setOf<Book>()
@@ -355,17 +376,12 @@ fun DashboardScreenPreviewNoSelection() {
 @Composable
 fun DashboardScreenPreviewSelection() {
     val book1 = Book(title = "1")
-    DashboardScreen(booksGrouped = listOf(
-        listOf(
-            book1,
-            Book(title = "2"),
-            Book(title = "3")
-        ),
-        listOf(
-            Book(title = "4")
-        )
+    DashboardScreen(books = listOf(
+        book1,
+        Book(title = "2"),
+        Book(title = "3"),
+        Book(title = "4")
     ),
-        booksCount = 4,
         onBookClicked = {}, onBookLongClicked = {},
         onDeleteSelectedClick = {}, onClearSelectionClick = {},
         selectionMode = SelectionMode.SELECT, selectedBooks = setOf(book1)
